@@ -7,7 +7,7 @@ const OF: u8 = 1 << 5;
 
 pub struct Vm {
     registers: [u16; 8],
-    pc: u16,
+    pc: usize,
     memory: [u8; 65536],
     flags: u8,
 }
@@ -45,13 +45,13 @@ impl Vm {
             0x00 => {} //nop
             0x08 => {
                 //movi: movi <Register> <LOWb> <HIGHb> (Lb + Hb -> R)
-                let reg = self.memory[self.pc as usize];
+                let reg = self.memory[self.pc];
                 self.pc += 1;
 
-                let low = self.memory[self.pc as usize] as u16;
+                let low = self.memory[self.pc] as u16;
                 self.pc += 1;
 
-                let high = self.memory[self.pc as usize] as u16;
+                let high = self.memory[self.pc] as u16;
                 self.pc += 1;
 
                 let value = low | (high << 8);
@@ -61,16 +61,32 @@ impl Vm {
             0x09 => {
 
                 //movr: movr <Register0> <Register1> (R1 -> R0)
-                let reg0 = self.memory[self.pc as usize];
+                let reg0 = self.memory[self.pc];
                 self.pc += 1;
 
-                let reg1 = self.memory[self.pc as usize];
+                let reg1 = self.memory[self.pc];
                 self.pc += 1;
 
                 self.registers[reg0 as usize] = self.registers[reg1 as usize];
             }
 
-            0x
+
+
+            0x10 => {
+                //addi: addi <Register> <LOWb> <HIGHb>
+                let reg = self.memory[self.pc];
+                self.pc += 1;
+
+                let low = self.memory[self.pc] as u16;
+                self.pc += 1;
+
+                let high = self.memory[self.pc] as u16;
+                self.pc += 1;
+                
+
+                let val = low | (high << 8);
+                self.registers[reg as usize] = self.registers[reg as usize] + val;
+            }
 
             _ => panic!("Unknown opcode"),
         }

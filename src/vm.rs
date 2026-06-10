@@ -5,6 +5,12 @@ const ZF: u8 = 1 << 3;
 const SF: u8 = 1 << 4;
 const OF: u8 = 1 << 5;
 
+//TODO
+//registers 항목을 추가해야할꺼같음
+//MUL을 계산할때 지금은 16bit지만 만약 16bit * 16bit를 한다고할때 32bit까지 수가 올라가기때문에
+//High bits, Low bits를 keep해놔야할게 필요함!
+//내생각엔 registry를 20개 까지 해놔야할꺼같은데...
+//MUL, 이랑 나중에 DIV도 생각하고 etc 2개정도 고려해놓으면.. (안쓸꺼같으면 general-purpose register로 바꾸면됨)
 pub struct Vm {
     pub registers: [u16; 16],
     pub pc: usize,
@@ -182,11 +188,59 @@ impl Vm {
                 self.registers[reg as usize] = rst;
             }
 
+            //CMP도 여기 포함되야 하려나...
+
+
             /*
             TODO
             MULI, MULR (0x20, 0x21)
-            그리고 저 연산함수에서 레지스트리가 u16 오버플로면 오버플로 플래그도 옮기게 바꿔야함 :)
              */
+            
+            0x20 => {
+                //muli: muli <Register> <LOWb> <HIGHb> (R -= Lb + Hb)
+                let reg = self.get_memory_u8();
+                self.pc += 1;
+
+                let val = (&mut *self).add_high_low();
+
+                let rev = self.registers[reg as usize];
+
+                let (rst, borrow) = rev.overflowing_mul(val);
+
+                let full = (rev as u32) * (val as u32);
+
+                let rst = full as u16;
+                let overflow = full > 0xFFFF;
+
+                self.set_flag(CF, overflow);
+                self.set_flag(OF, overflow);
+
+                self.set_flag(ZF, rst == 0);
+                self.set_flag(SF, rst & 0x8000 != 0);
+
+                self.registers[reg as usize] = rst;
+            }
+            0x21 => {
+                //subr: subr <Register0> <Register1> (R0 -= R1)
+                let reg = self.get_memory_u8();
+                self.pc += 1;
+
+                let val = self.get_memory_u8();
+                self.pc += 1;
+
+                let rev = self.registers[reg as usize];
+
+                let vav = self.registers[val as usize];
+
+                let (rst, borrow) = rev.overflowing_sub(vav);
+
+                self.set_flag(CF, borrow);
+                self.set_flag(ZF, rst == 0);
+                self.set_flag(SF, rst & 0x8000 != 0);
+                self.set_flag(OF, ((rev ^ vav) & (rev ^ rst) & 0x8000) != 0);
+
+                self.registers[reg as usize] = rst;
+            }
 
             _ => panic!("Unknown opcode"),
         }

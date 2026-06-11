@@ -6,11 +6,7 @@ const SF: u8 = 1 << 4;
 const OF: u8 = 1 << 5;
 
 //TODO
-//registers 항목을 추가해야할꺼같음
-//MUL을 계산할때 지금은 16bit지만 만약 16bit * 16bit를 한다고할때 32bit까지 수가 올라가기때문에
-//High bits, Low bits를 keep해놔야할게 필요함!
-//내생각엔 registry를 20개 까지 해놔야할꺼같은데...
-//MUL, 이랑 나중에 DIV도 생각하고 etc 2개정도 고려해놓으면.. (안쓸꺼같으면 general-purpose register로 바꾸면됨)
+//그냥 x86처럼 16개의 레지스터중에 역할을 정하기로함
 pub struct Vm {
     pub registers: [u16; 16],
     pub pc: usize,
@@ -44,7 +40,7 @@ impl Vm {
         self.memory[self.pc as usize]
     }
 
-    pub fn get_memory_u16(&self) -> u16 {
+    pub fn get_memory_u8_as_u16(&self) -> u16 {
         self.memory[self.pc as usize] as u16
     }
 
@@ -54,10 +50,10 @@ impl Vm {
     ///
     /// Advances the program counter by two. `self.pc += 2`
     pub fn add_high_low(&mut self) -> u16 {
-        let low= self.get_memory_u16();
+        let low= self.get_memory_u8_as_u16();
         self.pc += 1;
 
-        let high = self.get_memory_u16();
+        let high = self.get_memory_u8_as_u16();
         self.pc += 1;
 
         low | (high << 8)

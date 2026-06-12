@@ -226,8 +226,6 @@ impl Vm {
                 self.set_flag(OF, ((rev ^ vav) & (rev ^ rst) & 0x8000) != 0);
             }
 
-            //CMP도 여기 포함되야 하려나...
-
             // MULI, MULR, DIVI, DIVR은 특수레지스트리 R15를 주로 연산하고 R14, R15에 결과값을 저장함
             0x20 => {
                 // muli <LOWb> + <HIGHb> * <R15> = <R14(LOW)> , <R15(HIGH)>

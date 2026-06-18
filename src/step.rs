@@ -1,5 +1,7 @@
+use crate::exec::*;
 use crate::vm::Vm;
-impl Vm{
+
+impl Vm {
     pub fn step(&mut self) {
         let opcode = self.get_memory_u8();
         self.pc += 1;
@@ -18,29 +20,12 @@ impl Vm{
         0x50 ~ 0x57	LOAD
         0x58 ~ 0x5F	STORE
         0X60 ~ ...  ETC
-                 */
+        */
 
         match opcode {
             0x00 => {} //nop
-            0x08 => {
-                //movi: movi <Register> <LOWb> <HIGHb> (Lb + Hb -> R)
-                let reg = self.get_memory_u8();
-                self.pc += 1;
-
-                let value = (&mut *self).add_high_low();
-
-                self.registers[reg as usize] = value;
-            }
-            0x09 => {
-                //movr: movr <Register0> <Register1> (R1 -> R0)
-                let reg0 = self.get_memory_u8();
-                self.pc += 1;
-
-                let reg1 = self.get_memory_u8();
-                self.pc += 1;
-
-                self.registers[reg0 as usize] = self.registers[reg1 as usize];
-            }
+            0x08 => self.movi(),
+            0x09 => self.movr(),
 
             0x18 => {
                 //addi: addi <Register> <LOWb> <HIGHb> (R += Lb + Hb)
@@ -184,7 +169,7 @@ impl Vm{
 
                 // TODO 메모리 점프 (인터럽트)
                 if val == 0 {
-                    panic!("Divide by Zero Exception!");
+                    //제로디비전
                 }
 
                 let lhs_high = self.registers[14] as u32;
@@ -196,7 +181,7 @@ impl Vm{
 
                 // TODO 메모리 점프 (인터럽트)
                 if quotient > 0xFFFF {
-                    panic!("Divide Overflow Exception!");
+                    //디바이브 오버플로우
                 }
 
                 self.registers[15] = quotient as u16;
@@ -214,10 +199,9 @@ impl Vm{
 
                 let val = self.registers[reg as usize];
 
-
                 // TODO 메모리 점프 (인터럽트)
                 if val == 0 {
-                    panic!("Divide by Zero Exception!");
+                    // Divide by Zero Exception!
                 }
 
                 let lhs_high = self.registers[14] as u32;
@@ -227,10 +211,9 @@ impl Vm{
                 let quotient = full_dividend / (val as u32);
                 let remainder = full_dividend % (val as u32);
 
-
                 // TODO 메모리 점프 (인터럽트)
                 if quotient > 0xFFFF {
-                    panic!("Divide Overflow Exception!");
+                    //Divide Overflow Exception
                 }
 
                 self.registers[15] = quotient as u16;
@@ -240,16 +223,15 @@ impl Vm{
                 self.set_flag(crate::vm::SF, (self.registers[15] & 0x8000) != 0);
             }
 
-            0x28 => self.binary_logic(|a,b| a & b),
-            0x29 => self.binary_logic(|a,b| a | b),
-            0x2A => self.binary_logic(|a,b| a ^ b),
+            0x28 => self.binary_logic(|a, b| a & b),
+            0x29 => self.binary_logic(|a, b| a | b),
+            0x2A => self.binary_logic(|a, b| a ^ b),
 
-            0x2B => self.immediate_logic(|a,b| a & b),
-            0x2C => self.immediate_logic(|a,b| a | b),
-            0x2D => self.immediate_logic(|a,b| a ^ b),
+            0x2B => self.immediate_logic(|a, b| a & b),
+            0x2C => self.immediate_logic(|a, b| a | b),
+            0x2D => self.immediate_logic(|a, b| a ^ b),
 
             0x2E => self.unary_logic(|a| !a),
-
 
             0x38 => {
                 // jmp <LOWb> <HIGHb> (PC = Lb + Hb)
@@ -265,7 +247,7 @@ impl Vm{
                 let addr = self.add_high_low();
 
                 let cond_result = match condition {
-                    0x00 => true,  // Unconditional
+                    0x00 => true, // Unconditional
                     0x01 => self.get_flag(crate::vm::ZF),
                     0x02 => !self.get_flag(crate::vm::ZF),
                     0x03 => self.get_flag(crate::vm::SF),
@@ -274,7 +256,7 @@ impl Vm{
                     0x06 => !self.get_flag(crate::vm::CF),
                     0x07 => self.get_flag(crate::vm::OF),
                     0x08 => !self.get_flag(crate::vm::OF),
-                    _ => panic!("Unknown condition code"),
+                    _ => {} // Unknown condition code
                 };
 
                 if cond_result {
@@ -282,12 +264,9 @@ impl Vm{
                 }
             }
 
-
-
-
-
-
-            _ => panic!("Unknown opcode"),
+            _ => {
+                // Unknown opcode
+            }
         }
     }
 }

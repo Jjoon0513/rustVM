@@ -1,5 +1,3 @@
-#![no_std]
-
 pub const CF: u8 = 1 << 0;
 pub const PF: u8 = 1 << 1;
 pub const AF: u8 = 1 << 2;
@@ -49,10 +47,7 @@ impl Vm {
         let reg1 = self.get_memory_u8();
         self.pc += 1;
 
-        let rst = op(
-            self.registers[reg0 as usize],
-            self.registers[reg1 as usize],
-        );
+        let rst = op(self.registers[reg0 as usize], self.registers[reg1 as usize]);
 
         self.registers[reg0 as usize] = rst;
         self.update_flags(rst);
@@ -72,9 +67,7 @@ impl Vm {
         let reg = self.get_memory_u8();
         self.pc += 1;
 
-        let rst = op(
-            self.registers[reg as usize]
-        );
+        let rst = op(self.registers[reg as usize]);
 
         self.registers[reg as usize] = rst;
         self.update_flags(rst);
@@ -88,10 +81,7 @@ impl Vm {
 
         let val = self.add_high_low();
 
-        let rst = op(
-            self.registers[reg as usize],
-            val,
-        );
+        let rst = op(self.registers[reg as usize], val);
 
         self.registers[reg as usize] = rst;
         self.update_flags(rst);
@@ -144,6 +134,4 @@ impl Vm {
 
         low | (high << 8)
     }
-
-
 }

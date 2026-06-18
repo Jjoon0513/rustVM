@@ -1,6 +1,7 @@
 #![no_std]
-mod vm;
+mod exec;
 mod step;
+mod vm;
 
 fn main() {
     loop {}

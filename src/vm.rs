@@ -8,21 +8,8 @@ pub const OF: u8 = 1 << 5;
 //TODO
 /*
 R0 ~ R13 (범용)
-R14, R15 (DIV/MUL전용)
+R14, R15 (DIV/MUL전용 (그리고 범용))
 */
-
-//  0x0000 ~ 0x00FF       |    256 B     |   Kernel   | 인터럽트/시스콜 벡터 테이블 (MSR 대용)
-//  0x0100 ~ 0x9FFF       |   40.7 KB    |    User    | 유저 프로그램 코드 & 데이터 (텍스트, 힙)
-//  0xA000 ~ 0xBFFF       |     8 KB     |    User    | 유저 스택 공간 (0xBFFF부터 아래로 감소)
-//  0xC000 ~ 0xC0FF       |    256 B     |   Kernel   | MMIO 장치 구역 (하드웨어 I/O 레지스터)
-//  0xC100 ~ 0xF000       |   11.7 KB    |   Kernel   | 게스트 커널 소스 코드 및 드라이버
-//  0xF001 ~ 0xFFFF       |     4 KB     |   Kernel   | 커널 전용 스택 공간 (0xFFFF부터 아래로 감소)
-
-//  MMIO
-//  0xC000 : [WRITE] UART TX
-//  0xC001 : [READ]  UART RX
-//  0xC002 : [READ]  TIMER
-//  0xC003 : [READ]  RANDOM
 pub struct Vm {
     // 레지스터
     pub registers: [u16; 16],
@@ -31,20 +18,43 @@ pub struct Vm {
     pub cpl: u8,
     pub kernel_gs_base: u16,
 
+    pub usp: usize,
+    pub ksp: usize,
+
     pub pc: usize,
     pub memory: [u8; 65536],
     pub flags: u8,
 }
 
+// ::new
+impl Vm {
+    pub fn new() -> Self {
+        Self {
+            registers: [0x00; 16],
+            lstar: 0,
+            cpl: 0,
+            kernel_gs_base: 0, //지금은 DEAD?
+
+            usp: 0xBFFF,
+            ksp: 0xFFFF,
+
+            pc: 0xC100,
+            memory: [0; 65536],
+            flags: 0b00000000,
+        }
+    }
+} //엄청난 하드코딩이다..!
+
+// 핼퍼함수 모음
 impl Vm {
     pub fn binary_logic<F>(&mut self, op: F)
     where
         F: Fn(u16, u16) -> u16,
     {
-        let reg0 = self.get_memory_u8();
+        let reg0 = self.fetch_u8();
         self.pc += 1;
 
-        let reg1 = self.get_memory_u8();
+        let reg1 = self.fetch_u8();
         self.pc += 1;
 
         let rst = op(self.registers[reg0 as usize], self.registers[reg1 as usize]);
@@ -64,7 +74,7 @@ impl Vm {
     where
         F: Fn(u16) -> u16,
     {
-        let reg = self.get_memory_u8();
+        let reg = self.fetch_u8();
         self.pc += 1;
 
         let rst = op(self.registers[reg as usize]);
@@ -76,10 +86,10 @@ impl Vm {
     where
         F: Fn(u16, u16) -> u16,
     {
-        let reg = self.get_memory_u8();
+        let reg = self.fetch_u8();
         self.pc += 1;
 
-        let val = self.add_high_low();
+        let val = self.get_high_low();
 
         let rst = op(self.registers[reg as usize], val);
 
@@ -88,18 +98,42 @@ impl Vm {
     }
 }
 
-impl Vm {
-    pub fn new() -> Self {
-        Self {
-            registers: [0; 16],
-            lstar: 0,
-            cpl: 0,
-            kernel_gs_base: 0,
 
-            pc: 0,
-            memory: [0; 65536],
-            flags: 0,
-        }
+//  0x0000 ~ 0x00FF       |    256 B     |   Kernel   | 인터럽트/시스콜 벡터 테이블 (MSR 대용)
+//  0x0100 ~ 0x9FFF       |   40.7 KB    |    User    | 유저 프로그램 코드 & 데이터 (텍스트, 힙)
+//  0xA000 ~ 0xBFFF       |     8 KB     |    User    | 유저 스택 공간 (0xBFFF부터 아래로 감소)
+//  0xC000 ~ 0xC0FF       |    256 B     |   Kernel   | MMIO 장치 구역 (하드웨어 I/O 레지스터)
+//  0xC100 ~ 0xF000       |   11.7 KB    |   Kernel   | 게스트 커널 소스 코드 및 드라이버
+//  0xF001 ~ 0xFFFF       |     4 KB     |   Kernel   | 커널 전용 스택 공간 (0xFFFF부터 아래로 감소)
+
+//  MMIO
+//  0xC000 : [WRITE] UART TX
+//  0xC001 : [READ]  UART RX
+//  0xC002 : [READ]  TIMER
+//  0xC003 : [READ]  RANDOM
+
+//유틸
+impl Vm {
+
+    pub fn split_u16(&mut self, value: u16) -> (u8, u8) {
+        let low = value as u8;
+        let high = (value >> 8) as u8;
+        (low, high)
+    }
+    pub fn push_kernel_stack(&mut self, data: u8){
+        self.ksp -= 1;
+        self.set_memory(data, self.ksp);
+    }
+
+    pub fn push_user_stack(&mut self, data: u8){
+        self.usp -= 1;
+        self.set_memory(data, self.usp);
+    }
+
+    pub fn pop_kernel_stack(&mut self) -> u8 {
+        let data = self.memory[self.ksp];
+        self.ksp += 1;
+        data
     }
 
     pub fn set_flag(&mut self, flag: u8, value: bool) {
@@ -110,26 +144,30 @@ impl Vm {
         }
     }
 
+    pub fn set_memory(&mut self, data: u8, ptr: usize){
+        self.memory[ptr] = data
+    }
+
     pub fn get_flag(&self, flag: u8) -> bool {
         self.flags & flag != 0
     }
 
-    pub fn get_memory_u8(&self) -> u8 {
+    pub fn fetch_u8(&self) -> u8 {
         self.memory[self.pc as usize]
     }
 
-    pub fn get_memory_u8_as_u16(&self) -> u16 {
+    pub fn fetch_u16(&self) -> u16 {
         self.memory[self.pc as usize] as u16
     }
 
     ///이 함수는 프로그램 카운터를 두칸 앞으로 옮김 `self.pc += 2`
     ///
     /// Advances the program counter by two. `self.pc += 2`
-    pub fn add_high_low(&mut self) -> u16 {
-        let low = self.get_memory_u8_as_u16();
+    pub fn get_high_low(&mut self) -> u16 {
+        let low = self.fetch_u16();
         self.pc += 1;
 
-        let high = self.get_memory_u8_as_u16();
+        let high = self.fetch_u16();
         self.pc += 1;
 
         low | (high << 8)

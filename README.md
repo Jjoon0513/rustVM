@@ -56,14 +56,14 @@ Example:
 - Type E → `[opcode][addr16]`
 - Type F → `[opcode][condition][addr16]`
 
-- [ ] Stop changing instruction formats after ISA freeze
+- [x] Stop changing instruction formats after ISA freeze
 
 ---
 
 ## CPU Refactor
 
-- [ ] Split large `step()` function
-- [ ] Move each opcode into dedicated executor function
+- [x] Split large `step()` function
+- [x] Move each opcode into dedicated executor function
 
 Example:
 
@@ -115,8 +115,8 @@ Still needed:
 
 ## Stack Operations
 
-- [ ] PUSH
-- [ ] POP
+- [x] PUSH
+- [x] POP
 
 User Stack:
 

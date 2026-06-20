@@ -98,7 +98,6 @@ impl Vm {
     }
 }
 
-
 //  0x0000 ~ 0x00FF       |    256 B     |   Kernel   | 인터럽트/시스콜 벡터 테이블 (MSR 대용)
 //  0x0100 ~ 0x9FFF       |   40.7 KB    |    User    | 유저 프로그램 코드 & 데이터 (텍스트, 힙)
 //  0xA000 ~ 0xBFFF       |     8 KB     |    User    | 유저 스택 공간 (0xBFFF부터 아래로 감소)
@@ -114,18 +113,20 @@ impl Vm {
 
 //유틸
 impl Vm {
-
-    pub fn split_u16(&mut self, value: u16) -> (u8, u8) {
+    pub fn split_u16_as_u8(&mut self, value: u16) -> (u8, u8) {
         let low = value as u8;
         let high = (value >> 8) as u8;
         (low, high)
     }
-    pub fn push_kernel_stack(&mut self, data: u8){
+    pub fn combine_u8_to_u16(&mut self, low: u8, high: u8) -> u16 {
+        (low as u16 | ((high as u16) << 8))
+    }
+    pub fn push_kernel_stack(&mut self, data: u8) {
         self.ksp -= 1;
         self.set_memory(data, self.ksp);
     }
 
-    pub fn push_user_stack(&mut self, data: u8){
+    pub fn push_user_stack(&mut self, data: u8) {
         self.usp -= 1;
         self.set_memory(data, self.usp);
     }
@@ -133,6 +134,12 @@ impl Vm {
     pub fn pop_kernel_stack(&mut self) -> u8 {
         let data = self.memory[self.ksp];
         self.ksp += 1;
+        data
+    }
+
+    pub fn pop_user_stack(&mut self) -> u8 {
+        let data = self.memory[self.usp];
+        self.usp += 1;
         data
     }
 
@@ -144,8 +151,12 @@ impl Vm {
         }
     }
 
-    pub fn set_memory(&mut self, data: u8, ptr: usize){
+    pub fn set_memory(&mut self, data: u8, ptr: usize) {
         self.memory[ptr] = data
+    }
+
+    pub fn get_memory(&self, ptr: usize) -> u8 {
+        self.memory[ptr as usize]
     }
 
     pub fn get_flag(&self, flag: u8) -> bool {
@@ -153,11 +164,11 @@ impl Vm {
     }
 
     pub fn fetch_u8(&self) -> u8 {
-        self.memory[self.pc as usize]
+        self.get_memory(self.pc)
     }
 
     pub fn fetch_u16(&self) -> u16 {
-        self.memory[self.pc as usize] as u16
+        self.get_memory(self.pc) as u16
     }
 
     ///이 함수는 프로그램 카운터를 두칸 앞으로 옮김 `self.pc += 2`

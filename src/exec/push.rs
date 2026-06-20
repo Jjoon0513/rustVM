@@ -3,6 +3,7 @@ use crate::vm::Vm;
 impl Vm {
     pub fn push(&mut self) {
         let reg = self.fetch_u8();
+        self.pc += 1;
         let (low, high) = self.split_u16_as_u8(self.registers[reg as usize]);
         if self.cpl == 0 {
             self.push_kernel_stack(high);
@@ -15,7 +16,7 @@ impl Vm {
 
     pub fn pop(&mut self) {
         let reg = self.fetch_u8();
-
+        self.pc += 1;
         let (low, high) = if self.cpl == 0 {
             (self.pop_kernel_stack(), self.pop_kernel_stack())
         } else {

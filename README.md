@@ -43,9 +43,9 @@ Custom Virtual Machine written in Rust (`no_std`)
 
 ## ISA Design (Freeze Before Continuing)
 
-- [ ] Finalize opcode table
-- [ ] Finalize instruction operand formats
-- [ ] Define consistent instruction encoding
+- [x] Finalize opcode table
+- [x] Finalize instruction operand formats
+- [x] Define consistent instruction encoding
 
 Example:
 
@@ -81,11 +81,11 @@ exec_jump()
 
 Replace all panic-based errors with CPU exceptions
 
-- [ ] Invalid Opcode Exception
-- [ ] Divide By Zero Exception
-- [ ] Divide Overflow Exception
-- [ ] General Protection Exception
-- [ ] Privilege Violation Exception
+- [x] Invalid Opcode Exception
+- [x] Divide By Zero Exception
+- [x] Divide Overflow Exception
+- [x] General Protection Exception
+- [x] Privilege Violation Exception
 
 Vector Table:
 
@@ -106,10 +106,10 @@ Vector Table:
 
 Still needed:
 
-- [ ] Privilege checks
-- [ ] Kernel mode transition
-- [ ] Return to user mode
-- [ ] System call mechanism
+- [x] Privilege checks
+- [x] Kernel mode transition
+- [x] Return to user mode
+- [x] System call mechanism
 
 ---
 
@@ -134,9 +134,9 @@ Kernel Stack:
 
 ## Function Calls
 
-- [ ] CALL
-- [ ] RET
-- [ ] Stack frame convention
+- [x] CALL
+- [x] RET
+- [x] Stack frame convention
 
 ---
 

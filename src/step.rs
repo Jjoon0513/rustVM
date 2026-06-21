@@ -1,8 +1,16 @@
-use crate::exec::*;
+use crate::exec::interrupt::Interrupt;
 use crate::vm::Vm;
 
 impl Vm {
     pub fn step(&mut self) {
+        self.check_hardware();
+
+
+        if self.halt {
+            return;
+        }
+
+
         let opcode = self.fetch_u8();
         self.pc += 1;
 
@@ -19,11 +27,20 @@ impl Vm {
         0x48 ~ 0x4F	CALL/RET
         0x50 ~ 0x57	LOAD
         0x58 ~ 0x5F	STORE
-        0X60 ~ ...  ETC
+        0x60 ~ 0x67  SHIFT
+        0x68 ~ ...  ETC
         */
 
         match opcode {
             0x00 => {} //nop
+            0x01 => self.syscall(),
+            0x02 => self.sysret(),
+            0x03 => self.interrupt_op(),
+            0x04 => self.hlt(),
+            0x05 => self.cli(),
+            0x06 => self.sti(),
+            0x07 => self.iret(),
+
             0x08 => self.movi(),
             0x09 => self.movr(),
 
@@ -34,10 +51,9 @@ impl Vm {
             0x1B => self.subr(),
             0x1C => self.cmp(),
 
-            // MULI, MULR, DIVI, DIVR은 특수레지스트리 R15를 주로 연산하고 R14, R15에 결과값을 저장함
+            // MULI, MULR, DIVI, DIVR은 R12, R13에 결과값을 저장함 (syscall에 양보하기로 했음)
             0x20 => self.muli(),
-
-            0x21 => self.movr(),
+            0x21 => self.mulr(), //아니이런세상멍청한실수를하다니.
             0x22 => self.divi(),
             0x23 => self.divr(),
 
@@ -65,8 +81,24 @@ impl Vm {
             0x39 => self.jl(),
             0x3A => self.jle(),
 
+            0x40 => self.push(),
+            0x41 => self.pop(),
+
+            0x48 => self.call(),
+            0x49 => self.ret(),
+
+            0x50 => self.loadr(),
+            0x51 => self.loadi(),
+            0x52 => self.storer(),
+            0x53 => self.storei(),
+
+            0x60 => self.shli(),
+            0x61 => self.shlr(),
+            0x62 => self.shri(),
+            0x63 => self.shrr(),
+
             _ => {
-                // Unknown opcode
+                self.interrupt(Interrupt::InvalidOpcode as u8);
             }
         }
     }

@@ -4,3 +4,7 @@ pub mod jmp;
 pub mod mov;
 pub mod mul_div;
 pub mod push;
+pub mod system;
+pub mod load_store;
+pub mod shift;
+pub mod interrupt;

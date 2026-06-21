@@ -1,11 +1,14 @@
+use crate::exec::interrupt::Interrupt;
+
 pub const CF: u8 = 1 << 0;
-pub const PF: u8 = 1 << 1;
-pub const AF: u8 = 1 << 2;
 pub const ZF: u8 = 1 << 3;
 pub const SF: u8 = 1 << 4;
 pub const OF: u8 = 1 << 5;
+pub const IF: u8 = 1 << 6;
 
-//TODO
+pub const REG_RET_PC: usize = 14;
+pub const REG_RET_FLAGS: usize = 15;
+
 /*
 R0 ~ R13 (범용)
 R14, R15 (DIV/MUL전용 (그리고 범용))
@@ -14,7 +17,7 @@ pub struct Vm {
     // 레지스터
     pub registers: [u16; 16],
     // MSR
-    pub lstar: u16,
+    pub lstar: usize,
     pub cpl: u8,
     pub kernel_gs_base: u16,
 
@@ -24,6 +27,10 @@ pub struct Vm {
     pub pc: usize,
     pub memory: [u8; 65536],
     pub flags: u8,
+
+    pub timer_ticks: u64,
+
+    pub halt: bool,
 }
 
 // ::new
@@ -41,12 +48,17 @@ impl Vm {
             pc: 0xC100,
             memory: [0; 65536],
             flags: 0b00000000,
+
+            timer_ticks: 0,
+
+            halt: false,
         }
     }
 } //엄청난 하드코딩이다..!
 
 // 핼퍼함수 모음
 impl Vm {
+
     pub fn binary_logic<F>(&mut self, op: F)
     where
         F: Fn(u16, u16) -> u16,
@@ -113,13 +125,49 @@ impl Vm {
 
 //유틸
 impl Vm {
+
+    pub fn interrupt(&mut self, int_num: u8) {
+        self.halt = false;
+        if !self.get_flag(IF) && (0x20..=0x3F).contains(&int_num) {
+            return;
+        }
+
+        let handler =
+            self.memory[(int_num * 2) as usize] as u16
+                | ((self.memory[(int_num * 2 + 1) as usize] as u16) << 8);
+        self.push_kernel_stack(self.flags);
+        self.push_kernel_stack((self.pc >> 8) as u8);
+        self.push_kernel_stack((self.pc & 0xFF) as u8);
+        self.push_kernel_stack(self.cpl);
+        self.cpl = 0;
+        self.pc = handler as usize;
+    }
+
+    pub fn iret(&mut self) {
+        if self.cpl != 0 {
+            self.interrupt(Interrupt::GeneralProtection as u8);
+            return;
+        }
+
+        let old_cpl = self.pop_kernel_stack();
+
+        let pc_low = self.pop_kernel_stack() as u16;
+        let pc_high = self.pop_kernel_stack() as u16;
+
+        let old_flags = self.pop_kernel_stack();
+
+        self.cpl = old_cpl;
+        self.pc = ((pc_high << 8) | pc_low) as usize;
+        self.flags = old_flags;
+    }
+
     pub fn split_u16_as_u8(&mut self, value: u16) -> (u8, u8) {
         let low = value as u8;
         let high = (value >> 8) as u8;
         (low, high)
     }
     pub fn combine_u8_to_u16(&mut self, low: u8, high: u8) -> u16 {
-        (low as u16 | ((high as u16) << 8))
+        low as u16 | ((high as u16) << 8)
     }
     pub fn push_kernel_stack(&mut self, data: u8) {
         self.ksp -= 1;

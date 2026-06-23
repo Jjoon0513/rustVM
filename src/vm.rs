@@ -54,11 +54,25 @@ impl Vm {
             halt: false,
         }
     }
+
+    pub fn run(&mut self) {
+        while !self.halt {
+            self.step();
+        }
+    }
+
+    pub fn run_max(&mut self, max_steps: u64) -> bool {
+        let mut steps = 0;
+        while !self.halt && steps < max_steps {
+            self.step();
+            steps += 1;
+        }
+        self.halt // true = 정상 hlt, false = 스텝 초과
+    }
 } //엄청난 하드코딩이다..!
 
 // 핼퍼함수 모음
 impl Vm {
-
     pub fn binary_logic<F>(&mut self, op: F)
     where
         F: Fn(u16, u16) -> u16,
@@ -125,16 +139,14 @@ impl Vm {
 
 //유틸
 impl Vm {
-
     pub fn interrupt(&mut self, int_num: u8) {
         self.halt = false;
         if !self.get_flag(IF) && (0x20..=0x3F).contains(&int_num) {
             return;
         }
 
-        let handler =
-            self.memory[(int_num * 2) as usize] as u16
-                | ((self.memory[(int_num * 2 + 1) as usize] as u16) << 8);
+        let handler = self.memory[(int_num * 2) as usize] as u16
+            | ((self.memory[(int_num * 2 + 1) as usize] as u16) << 8);
         self.push_kernel_stack(self.flags);
         self.push_kernel_stack((self.pc >> 8) as u8);
         self.push_kernel_stack((self.pc & 0xFF) as u8);

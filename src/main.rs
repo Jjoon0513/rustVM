@@ -2,8 +2,8 @@ use crate::vm::Vm;
 
 mod exec;
 mod step;
-mod vm;
 mod util;
+mod vm;
 
 fn main() {
     let mut vm = Vm::new();

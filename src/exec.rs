@@ -1,10 +1,10 @@
 pub mod add_sub;
 pub mod call_ret;
+pub mod interrupt;
 pub mod jmp;
+pub mod load_store;
 pub mod mov;
 pub mod mul_div;
 pub mod push;
-pub mod system;
-pub mod load_store;
 pub mod shift;
-pub mod interrupt;
+pub mod system;

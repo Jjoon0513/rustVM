@@ -5,11 +5,9 @@ impl Vm {
     pub fn step(&mut self) {
         self.check_hardware();
 
-
         if self.halt {
             return;
         }
-
 
         let opcode = self.fetch_u8();
         self.pc += 1;

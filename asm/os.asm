@@ -1,5 +1,5 @@
 ; r0 = 코드
-syscall:
+syc:
     push r4
     movi r4, 1
     cmp r0, r4
@@ -13,11 +13,13 @@ syscall:
     pop r4
     sysret
     
+    
 ; r1: 문자열 메모리 주소
 ; r2: len
 ; r3: (다른 인자인데 write엔 필요없으므로...) 실제 내보낼 문자 하나?
 ; r5: 목표 메모리
 ; r6: 문자열 메모리 주소 복사 (working)
+
 sys_write:
     push r5
     push r6

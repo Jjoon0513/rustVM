@@ -1,6 +1,6 @@
 # rustVM
 
-Custom Virtual Machine written in Rust (`no_std`)
+Custom Virtual Machine written in Rust
 
 ## Current Progress
 

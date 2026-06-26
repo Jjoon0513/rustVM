@@ -1,4 +1,5 @@
 use crate::vm::Vm;
+use crate::vm::exec::interrupt::Interrupt::GeneralProtection;
 
 impl Vm {
     // loadr: load <dst_reg> <addr_reg>
@@ -22,6 +23,16 @@ impl Vm {
         self.pc += 1;
 
         let addr = self.registers[addr_reg as usize] as usize;
+
+        if addr == 0xC000 {
+            if self.cpl != 0 {
+                self.interrupt(GeneralProtection as u8);
+                return;
+            }
+            self.uart_write(self.registers[src as usize] as u8);
+            return;
+        }
+
         let (low, high) = self.split_u16_as_u8(self.registers[src as usize]);
         self.set_memory(low, addr);
         self.set_memory(high, addr + 1);
@@ -43,6 +54,15 @@ impl Vm {
 
         let src = self.fetch_u8();
         self.pc += 1;
+
+        if addr == 0xC000 {
+            if self.cpl != 0 {
+                self.interrupt(GeneralProtection as u8);
+                return;
+            }
+            self.uart_write(self.registers[src as usize] as u8);
+            return;
+        }
 
         let (low, high) = self.split_u16_as_u8(self.registers[src as usize]);
 

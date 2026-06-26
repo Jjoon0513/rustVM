@@ -1,7 +1,5 @@
-use crate::{
-    exec::interrupt::Interrupt,
-    vm::{IF, Vm},
-};
+use crate::vm::exec::interrupt::Interrupt;
+use crate::vm::{IF, Vm};
 
 pub mod check_hardware;
 pub mod help_function;

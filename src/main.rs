@@ -1,14 +1,8 @@
 use crate::vm::Vm;
+use crate::vm_core::VmCore;
 
-mod exec;
-mod step;
-mod util;
 mod vm;
+mod vm_builder;
 mod vm_core;
 
-fn main() {
-    let mut vm = Vm::new();
-    loop {
-        vm.step();
-    }
-}
+fn main() {}

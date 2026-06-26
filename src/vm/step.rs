@@ -1,5 +1,5 @@
-use crate::exec::interrupt::Interrupt;
 use crate::vm::Vm;
+use crate::vm::exec::interrupt::Interrupt;
 
 impl Vm {
     pub fn step(&mut self) {

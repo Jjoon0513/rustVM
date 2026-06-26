@@ -1,4 +1,4 @@
-use crate::exec::interrupt::Interrupt;
+use crate::vm::exec::interrupt::Interrupt;
 use crate::vm::{IF, REG_RET_FLAGS, REG_RET_PC, Vm};
 
 impl Vm {

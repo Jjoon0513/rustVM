@@ -1,4 +1,6 @@
-use crate::exec::interrupt::Interrupt;
+mod exec;
+mod step;
+mod util;
 
 pub const CF: u8 = 1 << 0;
 pub const ZF: u8 = 1 << 3;
@@ -24,7 +26,7 @@ pub struct Vm {
     pub ksp: usize,
 
     pub pc: usize,
-    pub memory: [u8; 65536],
+    pub memory: Box<[u8; 65536]>,
     pub flags: u8,
 
     pub timer_ticks: u64,
@@ -40,17 +42,16 @@ impl Vm {
             lstar: 0,
             cpl: 0,
             //부팅시에는 무조건 0xC100에서 시작
-
             usp: 0xBFFF,
             ksp: 0xFFFF,
 
             pc: 0xC100,
-            memory: [0; 65536],
+            memory: Box::new([0; 65536]),
             flags: 0b00000000,
 
             timer_ticks: 0,
 
             halt: false,
         }
-    }  
+    }
 } //엄청난 하드코딩이다..!

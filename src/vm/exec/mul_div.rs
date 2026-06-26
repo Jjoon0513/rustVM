@@ -1,5 +1,5 @@
-use crate::exec::interrupt::Interrupt;
 use crate::vm::Vm;
+use crate::vm::exec::interrupt::Interrupt;
 
 // muli <LOWb> + <HIGHb> * <R13> = <R12(HIGH)> , <R13(LOW)>
 impl Vm {

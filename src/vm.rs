@@ -19,7 +19,6 @@ pub struct Vm {
     // MSR
     pub lstar: usize,
     pub cpl: u8,
-    pub kernel_gs_base: u16,
 
     pub usp: usize,
     pub ksp: usize,
@@ -40,7 +39,7 @@ impl Vm {
             registers: [0x00; 16],
             lstar: 0,
             cpl: 0,
-            kernel_gs_base: 0, //지금은 DEAD?
+            //부팅시에는 무조건 0xC100에서 시작
 
             usp: 0xBFFF,
             ksp: 0xFFFF,
@@ -53,20 +52,5 @@ impl Vm {
 
             halt: false,
         }
-    }
-
-    pub fn run(&mut self) {
-        while !self.halt {
-            self.step();
-        }
-    }
-
-    pub fn run_max(&mut self, max_steps: u64) -> bool {
-        let mut steps = 0;
-        while !self.halt && steps < max_steps {
-            self.step();
-            steps += 1;
-        }
-        self.halt // true = 정상 hlt, false = 스텝 초과
-    }
+    }  
 } //엄청난 하드코딩이다..!

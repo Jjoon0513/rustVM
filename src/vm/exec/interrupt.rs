@@ -1,5 +1,6 @@
 use crate::vm::Vm;
 
+#[allow(dead_code)]
 #[repr(u8)]
 pub enum Interrupt {
     DivideByZero = 0x00,      // #DE

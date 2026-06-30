@@ -21,7 +21,8 @@ pub struct Vm {
     // MSR
     pub lstar: usize,
     pub cpl: u8,
-
+    
+    pub testmode: bool,
     pub usp: usize,
     pub ksp: usize,
 
@@ -42,6 +43,7 @@ impl Vm {
             lstar: 0,
             cpl: 0,
             //부팅시에는 무조건 0xC100에서 시작
+            testmode: false,
             usp: 0xBFFF,
             ksp: 0xFFFF,
 

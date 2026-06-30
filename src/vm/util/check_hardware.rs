@@ -11,7 +11,6 @@ impl Vm {
                 self.interrupt(Interrupt::Timer as u8);
             }
         }
-        
     }
     pub fn uart_write(&mut self, value: u8) {
         print!("{}", value as char);

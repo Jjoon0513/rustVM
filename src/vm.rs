@@ -21,7 +21,7 @@ pub struct Vm {
     // MSR
     pub lstar: usize,
     pub cpl: u8,
-    
+
     pub testmode: bool,
     pub usp: usize,
     pub ksp: usize,

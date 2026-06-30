@@ -1,7 +1,7 @@
 pub mod core_settings;
 
-use std::fs::File;
 use crate::vm::Vm;
+use std::fs::File;
 
 pub struct VmCore {
     vm: Vm,
@@ -17,7 +17,7 @@ impl VmCore {
 
     /// # system OpCode not supported!!
     /// > (ex: hlt, syscall, sysret, cli, etc...)
-    pub fn run_bin(&mut self, bin: Vec<u8>){
+    pub fn run_bin(&mut self, bin: Vec<u8>) {
         self.vm.memory[..bin.len()].copy_from_slice(&bin);
         self.vm.pc = 0x0000;
         self.vm.cpl = 3;
@@ -28,8 +28,6 @@ impl VmCore {
                 break;
             }
         }
-
-
     }
 
     pub fn run_max(&mut self, max_steps: u64) -> bool {

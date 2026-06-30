@@ -1,7 +1,6 @@
-
 #[cfg(test)]
 mod user_tests {
-    use crate::vm_core::{load_bin_from_file, VmCore};
+    use crate::vm_core::{VmCore, load_bin_from_file};
 
     #[test]
     fn test_movi_r0_10() {

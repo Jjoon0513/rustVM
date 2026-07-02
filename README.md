@@ -144,22 +144,22 @@ Kernel Stack:
 
 ## Memory Instructions
 
-- [ ] LOAD
-- [ ] STORE
+- [x] LOAD
+- [x] STORE
 
 Need support for:
 
-- [ ] Register indirect addressing
-- [ ] Absolute addressing
-- [ ] MMIO access
+- [x] Register indirect addressing
+- [x] Absolute addressing
+- [x] MMIO access
 
 ---
 
 ## MMIO Devices
 
-- [ ] UART TX
+- [x] UART TX
 - [ ] UART RX
-- [ ] Timer
+- [x] Timer (wip)
 - [ ] Random Generator
 
 Memory Map:
@@ -177,19 +177,19 @@ Memory Map:
 
 Need assembler before ISA changes become expensive
 
-- [ ] Lexer
-- [ ] Parser
-- [ ] Label support
-- [ ] Immediate parsing
-- [ ] Register parsing
-- [ ] Binary generation
+- [x] Lexer
+- [x] Parser
+- [x] Label support
+- [x] Immediate parsing
+- [x] Register parsing
+- [x] Binary generation
 
 Example:
 
 ```asm
 movi r0, 10
 addi r0, 5
-jcc zf, loop
+je loop
 ```
 
 ---
@@ -197,8 +197,8 @@ jcc zf, loop
 ## Debugging Tools
 
 - [ ] Instruction tracer
-- [ ] Register dump
-- [ ] Memory dump
+- [ ] Register dump (wip)
+- [ ] Memory dump (wip)
 - [ ] Breakpoints
 - [ ] Step execution
 
@@ -217,16 +217,7 @@ jcc zf, loop
 ## Future Goals
 
 - [ ] Interrupt handling
-- [ ] Syscall ABI
 - [ ] Guest Kernel
 - [ ] Executable format
 - [ ] Disassembler
 - [ ] Small operating system running inside VM
-
----
-
-## Long Term
-
-- [ ] Stable ISA (Frozen)
-- [ ] Full assembler toolchain
-- [ ] Self-hosted kernel inside VM

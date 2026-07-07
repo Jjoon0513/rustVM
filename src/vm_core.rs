@@ -30,6 +30,19 @@ impl VmCore {
         }
     }
 
+    pub fn set_kernel_memory(&mut self, data: Vec<u8>) {
+        self.vm.memory[0xC100..0xC100 + data.len()].copy_from_slice(&data);
+    }
+
+    pub fn set_user_memory(&mut self, data: Vec<u8>) {
+        self.vm.memory[0x0100..0x0100 + data.len()].copy_from_slice(&data);
+    }
+
+    pub fn set_interrupt_vector_table(&mut self, data: Vec<u8>) {
+        self.vm.memory[0x0000..0x0000 + data.len()].copy_from_slice(&data);
+    }
+
+
     pub fn run_max(&mut self, max_steps: u64) -> bool {
         let mut steps = 0;
         while !self.vm.halt && steps < max_steps {

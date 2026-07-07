@@ -31,7 +31,7 @@ sys_write_loop:
     cmp r6, r5
     je sys_write_exit
     loadr r3, r6
-    storei 49152, r3 ; 0xC000 = 49152, ㅠㅠ
+    storei 49152, r3 ; 0xC000 = 49152, ㅠㅠㅠㅠㅠㅠㅠㅠㅠㅠㅠㅠㅠ
     addi r6, 1
     jmp sys_write_loop
 

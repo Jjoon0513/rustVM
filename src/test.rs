@@ -37,3 +37,22 @@ mod user_tests {
         assert_eq!(vm_core.get_vm_ref().registers[5], 1);
     }
 }
+
+#[cfg(test)]
+mod full_tests {
+    use crate::vm_core::{VmCore, load_bin_from_file};
+
+    #[test]
+    fn hello_jjoon() {
+        let mut vm_core = VmCore::new();
+        let userprogram = load_bin_from_file("./asm/test/hello_jjoon.bin");
+        let kernelprogram = load_bin_from_file("./asm/os.bin");
+        let interrupt_vector_table = load_bin_from_file("./asm/interrupt.bin");
+        vm_core.set_kernel_memory(kernelprogram);
+        vm_core.set_user_memory(userprogram);
+        vm_core.set_interrupt_vector_table(interrupt_vector_table);
+
+        let result = vm_core.runvv_max(1000);
+        assert_eq!(result, true);
+    }
+}

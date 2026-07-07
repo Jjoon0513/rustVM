@@ -52,7 +52,12 @@ mod full_tests {
         vm_core.set_user_memory(userprogram);
         vm_core.set_interrupt_vector_table(interrupt_vector_table);
 
-        let result = vm_core.runvv_max(1000);
+        vm_core.get_vm().pc = 0x0100;    // 유저 진입점으로 바로 점프
+        vm_core.get_vm().cpl = 3;        // 유저모드
+        vm_core.get_vm().lstar = 0xC100; // syscall 진입점 = syc: 라벨 주소
+
+        let result = vm_core.run_max(1000);
         assert_eq!(result, true);
     }
+    
 }

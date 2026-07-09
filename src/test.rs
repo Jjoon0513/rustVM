@@ -72,6 +72,7 @@ mod full_tests {
             0b01100101, 0b01101100, 0b01101100, 0b01101111, 0b00101100, 0b00100000, 0b01001010, 0b01101010, 
             0b01101111, 0b01101111, 0b01101110, 0b00100001, 0b00001010
         ); //한번 해보고 싶었어요
+        //  let userprogram = load_bin_from_file("./asm/test/hello_jjoon_loop.bin");
         let kernelprogram = load_bin_from_file("./asm/os.bin");
         let interrupt_vector_table = load_bin_from_file("./asm/interrupt.bin");
         vm_core.set_kernel_memory(kernelprogram);

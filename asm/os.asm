@@ -65,4 +65,4 @@ sys_read:
 
 
 timer_interrupt:
-    sysret
+    iret

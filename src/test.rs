@@ -59,5 +59,30 @@ mod full_tests {
         let result = vm_core.run_max(1000);
         assert_eq!(result, true);
     }
-    
+
+    #[test]
+    fn hello_jjoon_loop() {
+        let mut vm_core = VmCore::new();
+        let userprogram = vec!(
+            0b00001000, 0b00000101, 0b00000000, 0b00000000, 0b00001000, 0b00000100, 0b00000101, 0b00000000,
+            0b00001000, 0b00000000, 0b00000001, 0b00000000, 0b00001000, 0b00000010, 0b00001110, 0b00000000,
+            0b00001000, 0b00000001, 0b00100111, 0b00000001, 0b00000001, 0b00011100, 0b00000101, 0b00000100,
+            0b00110001, 0b00100010, 0b00000001, 0b00011010, 0b00000100, 0b00000001, 0b00000000, 0b00110000, 
+            0b00010100, 0b00000001, 0b00001000, 0b00000000, 0b00000101, 0b00000000, 0b00000001, 0b01001000, 
+            0b01100101, 0b01101100, 0b01101100, 0b01101111, 0b00101100, 0b00100000, 0b01001010, 0b01101010, 
+            0b01101111, 0b01101111, 0b01101110, 0b00100001, 0b00001010
+        ); //한번 해보고 싶었어요
+        let kernelprogram = load_bin_from_file("./asm/os.bin");
+        let interrupt_vector_table = load_bin_from_file("./asm/interrupt.bin");
+        vm_core.set_kernel_memory(kernelprogram);
+        vm_core.set_user_memory(userprogram);
+        vm_core.set_interrupt_vector_table(interrupt_vector_table);
+
+        vm_core.get_vm().pc = 0x0100;    // 유저 진입점으로 바로 점프
+        vm_core.get_vm().cpl = 3;        // 유저모드
+        vm_core.get_vm().lstar = 0xC100; // syscall 진입점 = syc: 라벨 주소
+
+        let result = vm_core.run_max(1000);
+        assert_eq!(result, true);
+    }
 }

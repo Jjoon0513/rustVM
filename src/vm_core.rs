@@ -1,6 +1,6 @@
-pub mod core_settings;
+pub mod util;
 
-use crate::vm::Vm;
+use crate::{vm::Vm, vm_core::util::VmErr};
 use std::fs::File;
 
 pub struct VmCore {
@@ -30,19 +30,6 @@ impl VmCore {
         }
     }
 
-    pub fn set_kernel_memory(&mut self, data: Vec<u8>) {
-        self.vm.memory[0xC100..0xC100 + data.len()].copy_from_slice(&data);
-    }
-
-    pub fn set_user_memory(&mut self, data: Vec<u8>) {
-        self.vm.memory[0x0100..0x0100 + data.len()].copy_from_slice(&data);
-    }
-
-    pub fn set_interrupt_vector_table(&mut self, data: Vec<u8>) {
-        self.vm.memory[0x0000..0x0000 + data.len()].copy_from_slice(&data);
-    }
-
-
     pub fn run_max(&mut self, max_steps: u64) -> bool {
         let mut steps = 0;
         while !self.vm.halt && steps < max_steps {
@@ -55,14 +42,6 @@ impl VmCore {
     pub fn new() -> Self {
         VmCore { vm: Vm::new() }
     }
-
-    pub fn get_vm(&mut self) -> &mut Vm {
-        &mut self.vm
-    }
-
-    pub fn get_vm_ref(&self) -> &Vm {
-        &self.vm
-    }
 }
 
 pub fn load_bin_from_file(file_path: &str) -> Vec<u8> {
@@ -71,4 +50,9 @@ pub fn load_bin_from_file(file_path: &str) -> Vec<u8> {
     use std::io::Read;
     file.read_to_end(&mut buffer).expect("Failed to read file");
     buffer
+}
+
+pub fn load_asm_from_file(file_path: &str) -> Vec<u8> {
+    //TODO
+    Vec::<u8>::new()
 }

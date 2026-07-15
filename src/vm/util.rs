@@ -8,8 +8,8 @@ pub mod help_function;
 //  0x0100 ~ 0x9FFF       |   40.7 KB    |    User    | 유저 프로그램 코드 & 데이터 (텍스트, 힙)
 //  0xA000 ~ 0xBFFF       |     8 KB     |    User    | 유저 스택 공간 (0xBFFF부터 아래로 감소)
 //  0xC000 ~ 0xC0FF       |    256 B     |   Kernel   | MMIO 장치 구역 (하드웨어 I/O 레지스터)
-//  0xC100 ~ 0xF000       |   11.7 KB    |   Kernel   | 게스트 커널 소스 코드 및 드라이버
-//  0xF001 ~ 0xFFFF       |     4 KB     |   Kernel   | 커널 전용 스택 공간 (0xFFFF부터 아래로 감소)
+//  0xC100 ~ 0xEFFF       |   11.7 KB    |   Kernel   | 게스트 커널 소스 코드 및 드라이버
+//  0xF000 ~ 0xFFFF       |     4 KB     |   Kernel   | 커널 전용 스택 공간 (0xFFFF부터 아래로 감소)
 
 //  MMIO
 //  0xC000 : [WRITE] UART TX
@@ -95,7 +95,7 @@ impl Vm {
     }
 
     pub fn get_memory(&self, ptr: usize) -> u8 {
-        self.memory[ptr as usize]
+        self.memory[ptr]
     }
 
     pub fn get_flag(&self, flag: u8) -> bool {

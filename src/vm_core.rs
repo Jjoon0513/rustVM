@@ -1,3 +1,4 @@
+pub mod error;
 pub mod util;
 
 use crate::{vm::Vm, vm_core::util::VmErr};

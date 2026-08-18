@@ -1,10 +1,16 @@
-use crate::vm::Vm;
+use crate::vm::{Vm, REG_ZR};
 
 impl Vm {
-    //movi: movi <Register> <LOWb> <HIGHb> (Lb + Hb -> R)c
+    //movi: movi <Register> <LOWb> <HIGHb> (Lb + Hb -> R)
     pub fn movi(&mut self) {
         let reg = self.fetch_u8();
+        if reg == REG_ZR as u8 {
+            self.pc += 3;
+            return;
+        }
         self.pc += 1;
+
+        
 
         let value = self.get_high_low();
 
@@ -13,7 +19,13 @@ impl Vm {
     //movr: movr <Register0> <Register1> (R1 -> R0)
     pub fn movr(&mut self) {
         let reg0 = self.fetch_u8();
+        if reg0 == REG_ZR as u8 {
+            self.pc += 2;
+            return;
+        }
         self.pc += 1;
+        
+        
 
         let reg1 = self.fetch_u8();
         self.pc += 1;

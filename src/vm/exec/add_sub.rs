@@ -1,10 +1,15 @@
-use crate::vm::Vm;
+use crate::vm::{Vm, REG_ZR};
 
 impl Vm {
     // addi: addi <Register> <LOWb> <HIGHb> (R += Lb + Hb)
     pub fn addi(&mut self) {
         let reg = self.fetch_u8();
         self.pc += 1;
+
+        if reg == REG_ZR as u8 {
+            self.pc += 2; // Skip the immediate value if writing to REG_ZR
+            return;
+        }
 
         let imm = self.get_high_low();
         let lhs = self.registers[reg as usize];
@@ -26,6 +31,11 @@ impl Vm {
     pub fn addr(&mut self) {
         let reg0 = self.fetch_u8();
         self.pc += 1;
+
+        if reg0 == REG_ZR as u8 {
+            self.pc += 2; // Skip the immediate value if writing to REG_ZR
+            return;
+        }
 
         let reg1 = self.fetch_u8();
         self.pc += 1;

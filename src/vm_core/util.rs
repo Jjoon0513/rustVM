@@ -1,3 +1,7 @@
+use crate::vm::Vm;
+use crate::vm_core::err::*;
+use crate::vm_core::VmCore;
+
 impl VmCore {
     pub fn set_kernel_memory(&mut self, data: Vec<u8>) -> Result<&mut Self, VmErr> {
         if data.len() > KSORCE_QUOTA {

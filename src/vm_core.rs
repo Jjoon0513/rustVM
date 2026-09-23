@@ -1,6 +1,7 @@
 pub mod util;
+pub mod err;
 
-use crate::{vm::Vm, vm_core::util::VmErr};
+use crate::{vm::Vm, vm_core::err::VmErr};
 use std::fs::File;
 
 pub struct VmCore {

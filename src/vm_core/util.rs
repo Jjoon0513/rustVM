@@ -1,9 +1,6 @@
-use std::fmt;
-
-pub(crate) use crate::vm_core::error::{
-    IVT_QUOTA, IVT_START, KSORCE_QUOTA, KSORCE_START, USER_QUOTA, USER_START, VmErr,
-};
-use crate::{vm::Vm, vm_core::VmCore};
+use crate::vm::Vm;
+use crate::vm_core::err::*;
+use crate::vm_core::VmCore;
 
 impl VmCore {
     pub fn set_kernel_memory(&mut self, data: Vec<u8>) -> Result<&mut Self, VmErr> {

@@ -92,7 +92,7 @@ mod full_tests {
 mod err_tests {
     use crate::vm_core::{
         VmCore,
-        util::{KSORCE_QUOTA, VmErr},
+        err::{KSORCE_QUOTA, VmErr},
     };
     #[test]
     fn stack_head_captures_correct_overflow_bytes() {

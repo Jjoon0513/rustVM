@@ -1,4 +1,4 @@
-use crate::vm::{Vm, REG_ZR};
+use crate::vm::Vm;
 use crate::vm::exec::interrupt::Interrupt::GeneralProtection;
 
 impl Vm {
@@ -7,10 +7,6 @@ impl Vm {
         let dst = self.fetch_u8();
         self.pc += 1;
 
-        if dst == REG_ZR as u8 {
-            self.pc += 1;
-            return;
-        }
         let addr_reg = self.fetch_u8();
         self.pc += 1;
 
@@ -45,10 +41,6 @@ impl Vm {
     pub fn loadi(&mut self) {
         let dst = self.fetch_u8();
         self.pc += 1;
-        if dst == REG_ZR as u8 {
-            self.pc += 1;
-            return;
-        }
         let addr = self.get_high_low();
 
         let low = self.get_memory(addr as usize);

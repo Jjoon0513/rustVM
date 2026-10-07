@@ -1,4 +1,4 @@
-use crate::vm::{Vm, REG_ZR};
+use crate::vm::Vm;
 
 impl Vm {
     pub fn push(&mut self) {
@@ -16,11 +16,8 @@ impl Vm {
 
     pub fn pop(&mut self) {
         let reg = self.fetch_u8();
-        if reg == REG_ZR as u8 {
-            self.pc += 1;
-            return;
-        }
         self.pc += 1;
+        // ZR로 pop 해도 스택은 정상적으로 pop 되고, 값만 step 끝의 ZR 리셋으로 버려진다.
         let (low, high) = if self.cpl == 0 {
             (self.pop_kernel_stack(), self.pop_kernel_stack())
         } else {

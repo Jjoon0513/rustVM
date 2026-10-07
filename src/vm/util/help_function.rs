@@ -23,10 +23,7 @@ impl Vm {
                 return self.usp as u16;
             }
         }
-        // if reg == REG_ZR {
-        //     return 0;
-        // }
-        // 사실 이렇게 해도 되는데 또 분기생기면 성능 손해볼꺼같음...
+        // ZR은 step() 끝에서 0으로 리셋되므로 읽기 쪽 분기는 필요 없음
         self.registers[reg]
     }
 }
@@ -60,10 +57,6 @@ impl Vm {
         F: Fn(u16) -> u16,
     {
         let reg = self.fetch_u8();
-        if reg == REG_ZR as u8 {
-            self.pc += 1;
-            return;
-        }
         self.pc += 1;
 
         let rst = op(self.registers[reg as usize]);
@@ -76,10 +69,6 @@ impl Vm {
         F: Fn(u16, u16) -> u16,
     {
         let reg = self.fetch_u8();
-        if reg == REG_ZR as u8 {
-            self.pc += 1;
-            return;
-        }
         self.pc += 1;
 
         let val = self.get_high_low();

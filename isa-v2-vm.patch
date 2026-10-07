@@ -1,0 +1,683 @@
+diff --git a/src/test.rs b/src/test.rs
+index 00f8603..87f21ca 100644
+--- a/src/test.rs
++++ b/src/test.rs
+@@ -229,3 +229,343 @@ mod zr_tests {
+         assert_eq!(vm.registers[1], 0x1234);
+     }
+ }
++
++#[cfg(test)]
++mod isa_v2_tests {
++    //! ISA v2 확장 명령어 테스트.
++    //! 아래 바이트열은 rustVM-Assembler(rva)의 encoder 테스트와 **동일한 인코딩**을 쓴다.
++    //! 한쪽 레포의 opcode/피연산자 순서가 바뀌면 양쪽 테스트가 같이 깨져서 동기화 오류를 잡아낸다.
++    use crate::vm::{CF, DEFAULT_USER_STACK_ADDR, OF, REG_ZR, SF, ZF};
++    use crate::vm_core::VmCore;
++
++    fn movi(r: u8, v: u16) -> Vec<u8> {
++        vec![0x08, r, v as u8, (v >> 8) as u8]
++    }
++
++    /// prog를 주소 0에 올리고 유저 모드(cpl=3)로 `steps`번 실행. pokes는 실행 전에 메모리에 써 둘 값.
++    fn run_steps(prog: &[u8], pokes: &[(usize, u8)], steps: usize) -> VmCore {
++        let mut core = VmCore::new();
++        {
++            let vm = core.get_vm();
++            for &(addr, v) in pokes {
++                vm.memory[addr] = v;
++            }
++            vm.memory[..prog.len()].copy_from_slice(prog);
++            vm.pc = 0;
++            vm.cpl = 3;
++            for _ in 0..steps {
++                vm.step();
++            }
++        }
++        core
++    }
++
++    /// prog 길이만큼 실행 (뒤쪽 0x00은 nop)
++    fn run(prog: &[u8], pokes: &[(usize, u8)]) -> VmCore {
++        run_steps(prog, pokes, prog.len())
++    }
++
++    fn cat(parts: &[&[u8]]) -> Vec<u8> {
++        parts.iter().flat_map(|p| p.iter().copied()).collect()
++    }
++
++    // ───────────── ADC / SBB ─────────────
++
++    #[test]
++    fn adci_propagates_carry_for_32bit_add() {
++        // 0x0001_FFFF + 1 = 0x0002_0000
++        let prog = cat(&[
++            &movi(0, 0xFFFF),
++            &movi(1, 1),
++            &[0x18, 0, 1, 0], // addi r0, 1  → r0=0, CF=1
++            &[0x10, 1, 0, 0], // adci r1, 0  → r1 = 1 + 0 + CF
++        ]);
++        let core = run(&prog, &[]);
++        let vm = core.get_vm_ref();
++        assert_eq!((vm.registers[1], vm.registers[0]), (2, 0));
++    }
++
++    #[test]
++    fn adcr_propagates_carry() {
++        let prog = cat(&[
++            &movi(0, 0xFFFF),
++            &movi(1, 1),
++            &movi(2, 1),
++            &movi(3, 0),
++            &[0x19, 0, 2], // addr r0, r2
++            &[0x11, 1, 3], // adcr r1, r3
++        ]);
++        let vm = run(&prog, &[]);
++        assert_eq!(vm.get_vm_ref().registers[1], 2);
++    }
++
++    #[test]
++    fn adc_without_carry_is_plain_add() {
++        let prog = cat(&[&movi(1, 5), &[0x10, 1, 3, 0]]); // adci r1, 3
++        let core = run(&prog, &[]);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.registers[1], 8);
++        assert!(!vm.get_flag(CF));
++    }
++
++    #[test]
++    fn adc_sets_overflow_and_sign() {
++        let prog = cat(&[
++            &movi(4, 0xFFFF),
++            &[0x18, 4, 1, 0], // addi r4, 1 → CF=1
++            &movi(2, 0x7FFF),
++            &[0x10, 2, 0, 0], // adci r2, 0 → 0x8000
++        ]);
++        let core = run(&prog, &[]);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.registers[2], 0x8000);
++        assert!(vm.get_flag(OF) && vm.get_flag(SF));
++        assert!(!vm.get_flag(CF) && !vm.get_flag(ZF));
++    }
++
++    #[test]
++    fn adc_carry_out_when_carry_in_overflows() {
++        // 0xFFFF + 0 + CF(1) → 0, CF=1, ZF=1
++        let prog = cat(&[
++            &movi(4, 0xFFFF),
++            &[0x18, 4, 1, 0], // CF=1
++            &movi(2, 0xFFFF),
++            &[0x10, 2, 0, 0],
++        ]);
++        let core = run(&prog, &[]);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.registers[2], 0);
++        assert!(vm.get_flag(CF) && vm.get_flag(ZF));
++    }
++
++    #[test]
++    fn sbbi_propagates_borrow_for_32bit_sub() {
++        // 0x0002_0000 - 1 = 0x0001_FFFF
++        let prog = cat(&[
++            &movi(0, 0),
++            &movi(1, 2),
++            &[0x1A, 0, 1, 0], // subi r0, 1 → r0=0xFFFF, CF=1(borrow)
++            &[0x12, 1, 0, 0], // sbbi r1, 0
++        ]);
++        let core = run(&prog, &[]);
++        let vm = core.get_vm_ref();
++        assert_eq!((vm.registers[1], vm.registers[0]), (1, 0xFFFF));
++    }
++
++    #[test]
++    fn sbbr_propagates_borrow() {
++        let prog = cat(&[
++            &movi(0, 0),
++            &movi(1, 2),
++            &movi(2, 1),
++            &movi(3, 0),
++            &[0x1B, 0, 2], // subr r0, r2
++            &[0x13, 1, 3], // sbbr r1, r3
++        ]);
++        let core = run(&prog, &[]);
++        assert_eq!(core.get_vm_ref().registers[1], 1);
++    }
++
++    #[test]
++    fn sbb_flags_borrow_and_sign() {
++        let prog = cat(&[
++            &movi(5, 0),
++            &[0x1A, 5, 1, 0], // subi r5, 1 → CF=1
++            &movi(1, 0),
++            &[0x12, 1, 0, 0], // sbbi r1, 0 → 0 - 0 - 1
++        ]);
++        let core = run(&prog, &[]);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.registers[1], 0xFFFF);
++        assert!(vm.get_flag(CF) && vm.get_flag(SF) && !vm.get_flag(ZF));
++    }
++
++    // ───────────── SAR ─────────────
++
++    fn sari_case(initial: u16, amount: u8) -> (u16, bool) {
++        let prog = cat(&[&movi(0, initial), &[0x64, 0, amount]]);
++        let core = run(&prog, &[]);
++        let vm = core.get_vm_ref();
++        (vm.registers[0], vm.get_flag(CF))
++    }
++
++    #[test]
++    fn sari_keeps_sign() {
++        assert_eq!(sari_case(0x8000, 1), (0xC000, false));
++        assert_eq!(sari_case(0x0003, 1), (0x0001, true));
++        assert_eq!(sari_case(0x4000, 3), (0x0800, false));
++        assert_eq!(sari_case(0xFFF0, 4), (0xFFFF, false));
++    }
++
++    #[test]
++    fn sari_large_amounts_fill_with_sign() {
++        assert_eq!(sari_case(0x8000, 16), (0xFFFF, true));
++        assert_eq!(sari_case(0x8000, 20), (0xFFFF, true));
++        assert_eq!(sari_case(0x4000, 20), (0x0000, false));
++        assert_eq!(sari_case(0x4000, 255), (0x0000, false)); // 호스트 패닉 없음
++    }
++
++    #[test]
++    fn sari_zero_amount_changes_nothing_but_flags() {
++        assert_eq!(sari_case(0x1234, 0), (0x1234, false));
++    }
++
++    #[test]
++    fn sarr_uses_register_amount() {
++        let prog = cat(&[&movi(4, 0xFF00), &movi(5, 4), &[0x65, 4, 5]]);
++        let core = run(&prog, &[]);
++        assert_eq!(core.get_vm_ref().registers[4], 0xFFF0);
++    }
++
++    #[test]
++    fn sarr_huge_amount_does_not_panic() {
++        let prog = cat(&[&movi(4, 0x8000), &movi(5, 0xFFFF), &[0x65, 4, 5]]);
++        let core = run(&prog, &[]);
++        assert_eq!(core.get_vm_ref().registers[4], 0xFFFF);
++    }
++
++    // ───────────── 간접 점프 / 호출 ─────────────
++
++    #[test]
++    fn jmpr_jumps_to_register_value() {
++        let prog = cat(&[
++            &movi(0, 10),
++            &[0x3B, 0],       // jmpr r0
++            &movi(1, 0x0BAD), // 건너뛰어야 함
++            &movi(2, 0x1234), // 주소 10
++        ]);
++        let core = run(&prog, &[]);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.registers[1], 0);
++        assert_eq!(vm.registers[2], 0x1234);
++    }
++
++    #[test]
++    fn callr_calls_and_returns_with_balanced_stack() {
++        let prog = cat(&[
++            // r7을 쓰는 이유: 피연산자 바이트가 0x07(iret → 유저 모드에서 #GP)이라서,
++            // 복귀 주소가 한 칸이라도 어긋나면 그 바이트를 실행하게 되어 테스트가 실패한다. (r0이면 nop이라 못 잡음)
++            &movi(7, 14),
++            &[0x4A, 7],       // callr r7  (복귀 주소 6)
++            &movi(2, 0x2222), // 6..9  : 복귀 후 실행
++            &[0x30, 20, 0],   // 10..12: jmp 20
++            &[0x00],          // 13
++            &movi(1, 0x1111), // 14..17: 함수 본문
++            &[0x49],          // 18    : ret
++            &[0x00],          // 19
++        ]);
++        // 정확히 6 스텝(movi, callr, movi, ret, movi, jmp)만 실행한다.
++        // 이 VM은 예외 후 "예외를 낸 명령의 다음"으로 복귀하므로, 복귀 주소가 어긋나 #GP 우회가 생겨도
++        // 최종 상태는 같아진다. 스텝 수를 고정하면 우회가 생긴 순간 jmp에 도달하지 못해 실패한다.
++        let core = run_steps(&prog, &[], 6);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.pc, 20, "정확히 6 스텝 안에 jmp 20까지 도달해야 함");
++        assert_eq!(vm.registers[1], 0x1111);
++        assert_eq!(vm.registers[2], 0x2222);
++        assert_eq!(vm.cpl, 3);
++        assert_eq!(vm.usp, DEFAULT_USER_STACK_ADDR, "callr/ret 후 스택이 원복되어야 함");
++    }
++
++    // ───────────── 바이트 / 오프셋 load·store ─────────────
++
++    #[test]
++    fn loadb_zero_extends() {
++        let prog = cat(&[&movi(1, 0xFFFF), &movi(0, 0x2000), &[0x54, 1, 0]]);
++        let core = run(&prog, &[(0x2000, 0xAB), (0x2001, 0xCD)]);
++        assert_eq!(core.get_vm_ref().registers[1], 0x00AB);
++    }
++
++    #[test]
++    fn storeb_writes_only_one_byte() {
++        let prog = cat(&[&movi(2, 0x1234), &movi(3, 0x2001), &[0x58, 3, 2]]);
++        let core = run(&prog, &[(0x2000, 0xAB), (0x2001, 0xCD), (0x2002, 0x77)]);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.memory[0x2000], 0xAB);
++        assert_eq!(vm.memory[0x2001], 0x34);
++        assert_eq!(vm.memory[0x2002], 0x77, "이웃 바이트를 건드리면 안 됨");
++    }
++
++    #[test]
++    fn offset_load_store_with_negative_offsets() {
++        let prog = cat(&[
++            &movi(0, 0x1FFE),
++            &[0x55, 1, 0, 2, 0],       // loado  r1, r0, 2     → mem16[0x2000]
++            &movi(0, 0x2004),
++            &[0x55, 2, 0, 0xFC, 0xFF], // loado  r2, r0, -4    → mem16[0x2000]
++            &[0x56, 3, 0, 0xFD, 0xFF], // loadbo r3, r0, -3    → mem8[0x2001]
++            &movi(4, 0xBEEF),
++            &[0x59, 0, 0xFC, 0xFF, 4], // storeo  r0, -4, r4   → mem16[0x2000] = 0xBEEF
++            &movi(5, 0x0142),
++            &[0x5A, 0, 0xFD, 0xFF, 5], // storebo r0, -3, r5   → mem8[0x2001] = 0x42
++        ]);
++        let core = run(&prog, &[(0x2000, 0xAB), (0x2001, 0xCD)]);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.registers[1], 0xCDAB);
++        assert_eq!(vm.registers[2], 0xCDAB);
++        assert_eq!(vm.registers[3], 0x00CD);
++        assert_eq!(vm.memory[0x2000], 0xEF);
++        assert_eq!(vm.memory[0x2001], 0x42);
++        assert_eq!(vm.memory[0x2002], 0x00);
++    }
++
++    #[test]
++    fn effective_address_wraps_instead_of_panicking() {
++        let prog = cat(&[
++            &movi(0, 0xFFFF),
++            &[0x55, 1, 0, 0, 0], // loado r1, r0, 0 → mem[0xFFFF] | mem[0x0000]<<8 (둘째 바이트 래핑)
++            &movi(2, 0xABCD),
++            &[0x59, 0, 0, 0, 2], // storeo r0, 0, r2 → mem[0xFFFF]=CD, mem[0x0000]=AB
++            &[0x56, 3, 0, 1, 0], // loadbo r3, r0, 1 → ea = 0x0000
++        ]);
++        let core = run(&prog, &[(0xFFFF, 0x11)]);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.registers[1], 0x0811); // mem[0]은 프로그램 첫 바이트(0x08)
++        assert_eq!(vm.memory[0xFFFF], 0xCD);
++        assert_eq!(vm.registers[3], 0x00AB);
++    }
++
++    #[test]
++    fn uart_store_from_user_mode_raises_gp() {
++        let prog = cat(&[&movi(0, 0xC000), &movi(1, 0x41), &[0x58, 0, 1]]); // storeb r0, r1
++        let core = run_steps(&prog, &[], 3);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.cpl, 0, "#GP 인터럽트로 커널 모드 진입");
++        assert_eq!(vm.memory[0xC000], 0);
++    }
++
++    #[test]
++    fn uart_store_via_offset_from_user_mode_raises_gp() {
++        let prog = cat(&[&movi(0, 0xBFFF), &movi(1, 0x41), &[0x5A, 0, 1, 0, 1]]); // storebo r0, 1, r1 → 0xC000
++        let core = run_steps(&prog, &[], 3);
++        assert_eq!(core.get_vm_ref().cpl, 0);
++    }
++
++    // ───────────── ZR / 기존 동작 ─────────────
++
++    #[test]
++    fn zr_destination_stays_zero_and_pc_is_correct() {
++        let prog = cat(&[
++            &movi(0, 0x2000),
++            &[0x54, 0x10, 0],          // loadb  zr, r0
++            &[0x55, 0x10, 0, 0, 0],    // loado  zr, r0, 0
++            &[0x56, 0x10, 0, 0, 0],    // loadbo zr, r0, 0
++            &[0x10, 0x10, 1, 0],       // adci   zr, 1
++            &[0x12, 0x10, 1, 0],       // sbbi   zr, 1
++            &[0x64, 0x10, 1],          // sari   zr, 1
++            &movi(1, 0x1234),          // 마커: 앞 명령들의 PC 진행량이 맞아야 도달
++        ]);
++        let core = run(&prog, &[(0x2000, 0xFF), (0x2001, 0xFF)]);
++        let vm = core.get_vm_ref();
++        assert_eq!(vm.registers[REG_ZR], 0);
++        assert_eq!(vm.registers[1], 0x1234);
++    }
++
++    #[test]
++    fn undefined_neighbor_opcodes_are_still_invalid() {
++        // 새로 배정하지 않은 슬롯은 여전히 #UD (예: 0x14, 0x57, 0x66)
++        for op in [0x14u8, 0x57, 0x66] {
++            let core = run_steps(&[op], &[], 1);
++            assert_eq!(core.get_vm_ref().cpl, 0, "opcode {op:#04x} 은 #UD 여야 함");
++        }
++    }
++}
+diff --git a/src/vm/exec.rs b/src/vm/exec.rs
+index 66dadb0..f63db8d 100644
+--- a/src/vm/exec.rs
++++ b/src/vm/exec.rs
+@@ -1,6 +1,7 @@
+ pub mod add_sub;
+ pub mod call_ret;
+ pub mod interrupt;
++pub mod isa_v2;
+ pub mod jmp;
+ pub mod load_store;
+ pub mod mov;
+diff --git a/src/vm/exec/call_ret.rs b/src/vm/exec/call_ret.rs
+index 3a8692f..d76d317 100644
+--- a/src/vm/exec/call_ret.rs
++++ b/src/vm/exec/call_ret.rs
+@@ -3,7 +3,11 @@ use crate::vm::Vm;
+ impl Vm {
+     pub fn call(&mut self) {
+         let addr = self.get_high_low();
++        self.call_to(addr);
++    }
+ 
++    /// 복귀 주소(현재 PC)를 스택에 쌓고 `addr`로 점프. call / callr 공용.
++    pub fn call_to(&mut self, addr: u16) {
+         let return_addr = self.pc;
+         let (low, high) = self.split_u16_as_u8(return_addr as u16);
+         if self.cpl == 0 {
+diff --git a/src/vm/exec/isa_v2.rs b/src/vm/exec/isa_v2.rs
+new file mode 100644
+index 0000000..2a92754
+--- /dev/null
++++ b/src/vm/exec/isa_v2.rs
+@@ -0,0 +1,248 @@
++//! ISA v2 확장 — LLVM/컴파일러 백엔드를 위해 추가된 명령어들 (기존 opcode는 전혀 건드리지 않음).
++//!
++//! | opcode | 니모닉  | 피연산자                  | 의미 |
++//! |--------|---------|---------------------------|------|
++//! | 0x10   | adci    | Reg, Imm16                | R += imm + CF |
++//! | 0x11   | adcr    | Reg, Reg                  | R0 += R1 + CF |
++//! | 0x12   | sbbi    | Reg, Imm16                | R -= imm + CF |
++//! | 0x13   | sbbr    | Reg, Reg                  | R0 -= R1 + CF |
++//! | 0x3B   | jmpr    | Reg                       | PC = R |
++//! | 0x4A   | callr   | Reg                       | call(R)  (프레임은 `call`과 동일) |
++//! | 0x54   | loadb   | Reg dst, Reg addr         | dst = zero_extend(mem8[addr]) |
++//! | 0x55   | loado   | Reg dst, Reg base, Imm16  | dst = mem16[base + off] |
++//! | 0x56   | loadbo  | Reg dst, Reg base, Imm16  | dst = zero_extend(mem8[base + off]) |
++//! | 0x58   | storeb  | Reg addr, Reg src         | mem8[addr] = src & 0xFF |
++//! | 0x59   | storeo  | Reg base, Imm16, Reg src  | mem16[base + off] = src |
++//! | 0x5A   | storebo | Reg base, Imm16, Reg src  | mem8[base + off] = src & 0xFF |
++//! | 0x64   | sari    | Reg, Imm8                 | R = (signed R) >> imm (산술 시프트) |
++//! | 0x65   | sarr    | Reg, Reg                  | R0 = (signed R0) >> R1 |
++//!
++//! 규칙
++//! - `base + off`는 **16비트 래핑** 덧셈이다. off는 부호 있는 16비트로 취급되므로 `-4` 같은 값(0xFFFC)이
++//!   `base - 4`로 동작한다. 워드 접근의 둘째 바이트(`ea + 1`)도 래핑되어 호스트 패닉이 나지 않는다.
++//! - 주소 0xC000(UART TX)에 대한 store는 기존 `storer/storei`와 같이 커널 전용이며, 유저 모드면 #GP.
++//!   워드 store가 0xC000이면 기존과 동일하게 하위 바이트만 UART로 나간다.
++//! - adc/sbb의 ZF는 해당 워드의 결과만 본다(x86과 동일). 다중 워드 비교는 소프트웨어에서 처리해야 한다.
++
++use crate::vm::exec::interrupt::Interrupt::GeneralProtection;
++use crate::vm::{CF, OF, SF, Vm, ZF};
++
++const UART_TX: u16 = 0xC000;
++
++impl Vm {
++    // ───────────────────────── 내부 헬퍼 ─────────────────────────
++
++    /// 레지스터 번호 1바이트를 읽고 PC를 1 증가
++    fn fetch_reg(&mut self) -> u8 {
++        let r = self.fetch_u8();
++        self.pc += 1;
++        r
++    }
++
++    /// 유효 주소 = base + off (16비트 래핑)
++    fn effective_addr(&self, base_reg: u8, off: u16) -> u16 {
++        self.registers[base_reg as usize].wrapping_add(off)
++    }
++
++    fn read_u8_at(&self, addr: u16) -> u8 {
++        self.get_memory(addr as usize)
++    }
++
++    fn read_u16_at(&self, addr: u16) -> u16 {
++        let low = self.get_memory(addr as usize);
++        let high = self.get_memory(addr.wrapping_add(1) as usize);
++        self.combine_u8_to_u16_const(low, high)
++    }
++
++    fn combine_u8_to_u16_const(&self, low: u8, high: u8) -> u16 {
++        low as u16 | ((high as u16) << 8)
++    }
++
++    /// 바이트 쓰기. UART 주소면 커널 전용(#GP). 쓰기가 일어났으면 true
++    fn write_u8_at(&mut self, addr: u16, value: u8) -> bool {
++        if addr == UART_TX {
++            if self.cpl != 0 {
++                self.interrupt(GeneralProtection as u8);
++                return false;
++            }
++            self.uart_write(value);
++            return true;
++        }
++        self.set_memory(value, addr as usize);
++        true
++    }
++
++    /// 워드 쓰기 (little endian, 둘째 바이트 주소는 래핑)
++    fn write_u16_at(&mut self, addr: u16, value: u16) -> bool {
++        if addr == UART_TX {
++            // 기존 storer/storei와 동일: 하위 바이트만 UART로
++            return self.write_u8_at(addr, value as u8);
++        }
++        self.set_memory(value as u8, addr as usize);
++        self.set_memory((value >> 8) as u8, addr.wrapping_add(1) as usize);
++        true
++    }
++
++    fn add_with_carry(&mut self, lhs: u16, rhs: u16) -> u16 {
++        let carry_in = self.get_flag(CF) as u32;
++        let sum = lhs as u32 + rhs as u32 + carry_in;
++        let result = sum as u16;
++        self.set_flag(CF, sum > 0xFFFF);
++        self.set_flag(ZF, result == 0);
++        self.set_flag(SF, result & 0x8000 != 0);
++        self.set_flag(OF, ((lhs ^ result) & (rhs ^ result) & 0x8000) != 0);
++        result
++    }
++
++    fn sub_with_borrow(&mut self, lhs: u16, rhs: u16) -> u16 {
++        let borrow_in = self.get_flag(CF) as u32;
++        let result = lhs.wrapping_sub(rhs).wrapping_sub(borrow_in as u16);
++        self.set_flag(CF, (lhs as u32) < rhs as u32 + borrow_in);
++        self.set_flag(ZF, result == 0);
++        self.set_flag(SF, result & 0x8000 != 0);
++        self.set_flag(OF, ((lhs ^ rhs) & (lhs ^ result) & 0x8000) != 0);
++        result
++    }
++
++    fn arithmetic_shift_right(&mut self, reg: u8, amount: u8) {
++        let value = self.registers[reg as usize];
++        let shift = amount.min(15) as u32; // 16 이상은 부호 비트로 가득 참
++        let result = ((value as i16) >> shift) as u16;
++
++        // 마지막으로 밀려나간 비트 (amount > 16이면 부호 비트)
++        let carry = match amount {
++            0 => false,
++            1..=16 => (value >> (amount - 1)) & 1 != 0,
++            _ => value & 0x8000 != 0,
++        };
++
++        self.registers[reg as usize] = result;
++        self.set_flag(CF, carry);
++        self.set_flag(OF, false);
++        self.set_flag(ZF, result == 0);
++        self.set_flag(SF, result & 0x8000 != 0);
++    }
++
++    // ───────────────────────── ADC / SBB ─────────────────────────
++
++    // adci: adci <Register> <LOWb> <HIGHb>
++    pub fn adci(&mut self) {
++        let reg = self.fetch_reg();
++        let imm = self.get_high_low();
++        let lhs = self.registers[reg as usize];
++        self.registers[reg as usize] = self.add_with_carry(lhs, imm);
++    }
++
++    // adcr: adcr <Register0> <Register1>
++    pub fn adcr(&mut self) {
++        let reg0 = self.fetch_reg();
++        let reg1 = self.fetch_reg();
++        let lhs = self.registers[reg0 as usize];
++        let rhs = self.registers[reg1 as usize];
++        self.registers[reg0 as usize] = self.add_with_carry(lhs, rhs);
++    }
++
++    // sbbi: sbbi <Register> <LOWb> <HIGHb>
++    pub fn sbbi(&mut self) {
++        let reg = self.fetch_reg();
++        let imm = self.get_high_low();
++        let lhs = self.registers[reg as usize];
++        self.registers[reg as usize] = self.sub_with_borrow(lhs, imm);
++    }
++
++    // sbbr: sbbr <Register0> <Register1>
++    pub fn sbbr(&mut self) {
++        let reg0 = self.fetch_reg();
++        let reg1 = self.fetch_reg();
++        let lhs = self.registers[reg0 as usize];
++        let rhs = self.registers[reg1 as usize];
++        self.registers[reg0 as usize] = self.sub_with_borrow(lhs, rhs);
++    }
++
++    // ───────────────────────── SAR ─────────────────────────
++
++    // sari: sari <Register> <Amount>
++    pub fn sari(&mut self) {
++        let reg = self.fetch_reg();
++        let amount = self.fetch_u8();
++        self.pc += 1;
++        self.arithmetic_shift_right(reg, amount);
++    }
++
++    // sarr: sarr <Register0> <Register1>  (amount = R1의 하위 바이트가 아니라 R1 전체, 255로 포화)
++    pub fn sarr(&mut self) {
++        let reg0 = self.fetch_reg();
++        let reg1 = self.fetch_reg();
++        let amount = self.registers[reg1 as usize].min(255) as u8;
++        self.arithmetic_shift_right(reg0, amount);
++    }
++
++    // ───────────────────────── 간접 점프 / 호출 ─────────────────────────
++
++    // jmpr: jmpr <Register>
++    pub fn jmpr(&mut self) {
++        let reg = self.fetch_reg();
++        self.pc = self.registers[reg as usize] as usize;
++    }
++
++    // callr: callr <Register>
++    pub fn callr(&mut self) {
++        let reg = self.fetch_reg();
++        let target = self.registers[reg as usize];
++        self.call_to(target);
++    }
++
++    // ───────────────────────── 바이트 / 오프셋 load·store ─────────────────────────
++
++    // loadb: loadb <dst> <addr_reg>
++    pub fn loadb(&mut self) {
++        let dst = self.fetch_reg();
++        let addr_reg = self.fetch_reg();
++        let addr = self.registers[addr_reg as usize];
++        self.registers[dst as usize] = self.read_u8_at(addr) as u16;
++    }
++
++    // loado: loado <dst> <base_reg> <LOWb> <HIGHb>
++    pub fn loado(&mut self) {
++        let dst = self.fetch_reg();
++        let base = self.fetch_reg();
++        let off = self.get_high_low();
++        let addr = self.effective_addr(base, off);
++        self.registers[dst as usize] = self.read_u16_at(addr);
++    }
++
++    // loadbo: loadbo <dst> <base_reg> <LOWb> <HIGHb>
++    pub fn loadbo(&mut self) {
++        let dst = self.fetch_reg();
++        let base = self.fetch_reg();
++        let off = self.get_high_low();
++        let addr = self.effective_addr(base, off);
++        self.registers[dst as usize] = self.read_u8_at(addr) as u16;
++    }
++
++    // storeb: storeb <addr_reg> <src>
++    pub fn storeb(&mut self) {
++        let addr_reg = self.fetch_reg();
++        let src = self.fetch_reg();
++        let addr = self.registers[addr_reg as usize];
++        self.write_u8_at(addr, self.registers[src as usize] as u8);
++    }
++
++    // storeo: storeo <base_reg> <LOWb> <HIGHb> <src>
++    pub fn storeo(&mut self) {
++        let base = self.fetch_reg();
++        let off = self.get_high_low();
++        let src = self.fetch_reg();
++        let addr = self.effective_addr(base, off);
++        self.write_u16_at(addr, self.registers[src as usize]);
++    }
++
++    // storebo: storebo <base_reg> <LOWb> <HIGHb> <src>
++    pub fn storebo(&mut self) {
++        let base = self.fetch_reg();
++        let off = self.get_high_low();
++        let src = self.fetch_reg();
++        let addr = self.effective_addr(base, off);
++        self.write_u8_at(addr, self.registers[src as usize] as u8);
++    }
++}
+diff --git a/src/vm/step.rs b/src/vm/step.rs
+index 2b946cd..d7f88c0 100644
+--- a/src/vm/step.rs
++++ b/src/vm/step.rs
+@@ -51,6 +51,12 @@ impl Vm {
+             0x08 => self.movi(),
+             0x09 => self.movr(),
+ 
++            // ISA v2: 캐리 포함 연산
++            0x10 => self.adci(),
++            0x11 => self.adcr(),
++            0x12 => self.sbbi(),
++            0x13 => self.sbbr(),
++
+             0x18 => self.addi(),
+             0x19 => self.addr(),
+ 
+@@ -88,21 +94,35 @@ impl Vm {
+             0x39 => self.jl(),
+             0x3A => self.jle(),
+ 
++            // ISA v2: 간접 점프
++            0x3B => self.jmpr(),
++
+             0x40 => self.push(),
+             0x41 => self.pop(),
+ 
+             0x48 => self.call(),
+             0x49 => self.ret(),
++            0x4A => self.callr(), // ISA v2
+ 
+             0x50 => self.loadr(),
+             0x51 => self.loadi(),
+             0x52 => self.storer(),
+             0x53 => self.storei(),
+ 
++            // ISA v2: 바이트 / 오프셋 load·store
++            0x54 => self.loadb(),
++            0x55 => self.loado(),
++            0x56 => self.loadbo(),
++            0x58 => self.storeb(),
++            0x59 => self.storeo(),
++            0x5A => self.storebo(),
++
+             0x60 => self.shli(),
+             0x61 => self.shlr(),
+             0x62 => self.shri(),
+             0x63 => self.shrr(),
++            0x64 => self.sari(), // ISA v2
++            0x65 => self.sarr(), // ISA v2
+ 
+             _ => {
+                 self.interrupt(Interrupt::InvalidOpcode as u8);

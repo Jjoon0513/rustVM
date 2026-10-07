@@ -1,6 +1,7 @@
 pub mod add_sub;
 pub mod call_ret;
 pub mod interrupt;
+pub mod isa_v2;
 pub mod jmp;
 pub mod load_store;
 pub mod mov;

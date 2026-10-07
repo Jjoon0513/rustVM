@@ -3,7 +3,11 @@ use crate::vm::Vm;
 impl Vm {
     pub fn call(&mut self) {
         let addr = self.get_high_low();
+        self.call_to(addr);
+    }
 
+    /// 복귀 주소(현재 PC)를 스택에 쌓고 `addr`로 점프. call / callr 공용.
+    pub fn call_to(&mut self, addr: u16) {
         let return_addr = self.pc;
         let (low, high) = self.split_u16_as_u8(return_addr as u16);
         if self.cpl == 0 {

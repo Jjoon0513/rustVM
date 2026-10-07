@@ -2,7 +2,7 @@
 pub mod util;
 pub mod err;
 
-use crate::{vm::Vm, vm_core::err::VmErr};
+use crate::vm::Vm;
 use std::fs::File;
 
 pub struct VmCore {
@@ -54,7 +54,7 @@ pub fn load_bin_from_file(file_path: &str) -> Vec<u8> {
     buffer
 }
 
-pub fn load_asm_from_file(file_path: &str) -> Vec<u8> {
+pub fn load_asm_from_file(_file_path: &str) -> Vec<u8> {
     //TODO
     Vec::<u8>::new()
 }

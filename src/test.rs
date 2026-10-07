@@ -90,10 +90,9 @@ mod full_tests {
 }
 
 mod err_tests {
-    use crate::vm_core::{
-        VmCore,
-        err::{KSORCE_QUOTA, VmErr},
-    };
+    use crate::vm_core::err::{VmErr, KSORCE_QUOTA};
+    use crate::vm_core::VmCore;
+
     #[test]
     fn stack_head_captures_correct_overflow_bytes() {
         let mut vm_core = VmCore::new();

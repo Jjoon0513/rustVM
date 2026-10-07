@@ -1,6 +1,5 @@
 use std::fmt;
 
-use crate::{vm::Vm, vm_core::VmCore};
 
 // ── 메모리 레이아웃 상수 ──────────────────────────────────────────────
 pub const IVT_START: usize = 0x0000;

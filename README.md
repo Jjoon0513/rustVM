@@ -2,6 +2,9 @@
 
 # rustVM (deprecated)
 
+> [!IMPORTANT]
+> This version of RustVM is outdated. For a newer, more modern CPU VM, please refer to the [RustVM-2](https://github.com/Jjoon0513/RustVM-v2) repository.
+
 Custom Virtual Machine written in Rust
 
 

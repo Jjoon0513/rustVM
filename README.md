@@ -1,8 +1,10 @@
 [![Rust](https://github.com/Jjoon0513/rustVM/actions/workflows/rust.yml/badge.svg)](https://github.com/Jjoon0513/rustVM/actions/workflows/rust.yml)
 
-# rustVM
+# rustVM (deprecated)
 
 Custom Virtual Machine written in Rust
+
+
 
 ## Current Progress
 
